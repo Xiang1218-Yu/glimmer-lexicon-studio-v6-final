@@ -187,8 +187,6 @@ func (e *Engine) Advance(ctx context.Context, id, stage, actor string) (Record, 
 		return Record{}, errors.New("record not found")
 	}
 	stage = strings.ToLower(strings.TrimSpace(stage))
-	record.Version++
-	e.records[record.ID] = cloneRecord(record)
 	if stage == "" || stage == record.Stage {
 		return Record{}, errors.New("a different target stage is required")
 	}
