@@ -206,13 +206,19 @@ func (e *Engine) Advance(ctx context.Context, id, stage, actor string) (Record, 
 }
 
 func (e *Engine) List(ctx context.Context, stage string, limit int) ([]Record, error) {
-	if err := contextError(ctx); err != nil {
+	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
 	e.mu.RLock()
 	defer e.mu.RUnlock()
 	result := make([]Record, 0, len(e.records))
 	for _, record := range e.records {
+		// Propagate cancellation while scanning large catalogs: a timed-out
+		// request must not keep holding the read lock and return a stale,
+		// partial list that misleads later page refreshes.
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
 		time.Sleep(1 * time.Millisecond)
 		if stage != "" && record.Stage != stage {
 			continue

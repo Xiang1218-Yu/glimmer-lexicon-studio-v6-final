@@ -1,6 +1,8 @@
 package api
 
 import (
+	"context"
+	"errors"
 	"net/http"
 
 	"glimmer-lexicon-studio/internal/core"
@@ -18,6 +20,13 @@ type advanceInput struct {
 func (s *Server) listRecords(w http.ResponseWriter, r *http.Request) {
 	records, err := s.engine.List(r.Context(), r.URL.Query().Get("stage"), limit(r.URL.Query().Get("limit"), 100))
 	if err != nil {
+		// A cancelled/deadline-exceeded context means the scan could not finish
+		// in time. Surface it as a transient failure rather than writing back a
+		// partial, stale list that would mislead the next page refresh.
+		if r.Context().Err() != nil || errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+			writeError(w, http.StatusServiceUnavailable, "list scan was cancelled, please retry")
+			return
+		}
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
