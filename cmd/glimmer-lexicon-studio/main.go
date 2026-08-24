@@ -16,7 +16,15 @@ import (
 
 func main() {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
+	logger = logger.With("service", "glimmer-lexicon-studio")
 	engine := core.NewEngine()
+	// Assemble the module registry after the server begins listening so the
+	// HTTP layer can answer readiness probes with a stable "not ready"
+	// response during initialization instead of an empty module list.
+	go func() {
+		engine.Init()
+		logger.Info("engine initialized", "status", "ready", "modules", len(engine.Modules()))
+	}()
 	config := ops.LoadConfig()
 	server := api.New(engine, logger)
 	httpServer := &http.Server{
@@ -32,7 +40,7 @@ func main() {
 		defer stop()
 		_ = httpServer.Shutdown(shutdown)
 	}()
-	logger.Info("glimmer-lexicon-studio listening", "addr", httpServer.Addr, "initial_stage", "draft", "modules", len(engine.Modules()))
+	logger.Info("glimmer-lexicon-studio listening", "addr", httpServer.Addr, "status", "initializing")
 	if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		logger.Error("server stopped", "error", err)
 		os.Exit(1)

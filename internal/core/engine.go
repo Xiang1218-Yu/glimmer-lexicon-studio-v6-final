@@ -53,9 +53,24 @@ type Engine struct {
 	modules  []Module
 	records  map[string]Record
 	sequence uint64
+	ready    bool
 }
 
+// NewEngine returns an Engine whose module registry has not yet been
+// assembled. The returned engine is not ready: callers must run Init (in the
+// main goroutine or a background one) before record operations are meaningful.
+// Keeping construction and initialization separate lets the HTTP layer serve a
+// stable "not ready" response during startup instead of returning an empty
+// module list that monitoring cannot distinguish from a crash.
 func NewEngine() *Engine {
+	return &Engine{records: make(map[string]Record)}
+}
+
+// Init assembles and sorts the module registry and marks the engine ready. It
+// is safe to call from a goroutine started before the HTTP server begins
+// serving; once it returns, Ready reports true. Calling Init more than once is
+// a no-op after the first successful assembly.
+func (e *Engine) Init() {
 	modules := []Module{
 		NewConceptModule(),
 		NewTermModule(),
@@ -121,7 +136,19 @@ func NewEngine() *Engine {
 		NewQualityModule(),
 	}
 	sort.Slice(modules, func(i, j int) bool { return modules[i].Priority() < modules[j].Priority() })
-	return &Engine{modules: modules, records: make(map[string]Record)}
+	e.mu.Lock()
+	if !e.ready {
+		e.modules = modules
+		e.ready = true
+	}
+	e.mu.Unlock()
+}
+
+// Ready reports whether Init has completed and the module registry is available.
+func (e *Engine) Ready() bool {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+	return e.ready
 }
 
 func (e *Engine) Modules() []Module {
