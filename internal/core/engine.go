@@ -247,8 +247,16 @@ func (e *Engine) Snapshot() map[string]int {
 	e.mu.RLock()
 	defer e.mu.RUnlock()
 	snapshot := map[string]int{"modules": len(e.modules), "records": len(e.records)}
-	for range e.records {
-		snapshot["stage_draft"]++
+	// Each record's current Stage drives its bucket so records advanced out
+	// of draft no longer inflate stage_draft. Every known lifecycle stage is
+	// pre-seeded with zero so operators always see the full phase breakdown
+	// (a missing key reads as "stage unknown", not "nothing stalled here").
+	stages := []string{"draft", "review", "published", "retired"}
+	for _, stage := range stages {
+		snapshot["stage_"+stage] = 0
+	}
+	for _, record := range e.records {
+		snapshot["stage_"+record.Stage]++
 	}
 	return snapshot
 }
