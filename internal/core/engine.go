@@ -187,8 +187,6 @@ func (e *Engine) Advance(ctx context.Context, id, stage, actor string) (Record, 
 		return Record{}, errors.New("record not found")
 	}
 	stage = strings.ToLower(strings.TrimSpace(stage))
-	record.History = append(record.History, Transition{From: record.Stage, To: stage, By: actor, At: time.Now().UTC()})
-	e.records[record.ID] = cloneRecord(record)
 	if stage == "" || stage == record.Stage {
 		return Record{}, errors.New("a different target stage is required")
 	}
@@ -197,6 +195,8 @@ func (e *Engine) Advance(ctx context.Context, id, stage, actor string) (Record, 
 			return Record{}, errors.New("stage is not accepted by module " + module.Key())
 		}
 	}
+	// Validate fully before mutating: a rejected advance must leave neither a
+	// history entry nor a version bump on the record.
 	now := time.Now().UTC()
 	record.History = append(record.History, Transition{From: record.Stage, To: stage, By: actor, At: now})
 	record.Stage = stage
