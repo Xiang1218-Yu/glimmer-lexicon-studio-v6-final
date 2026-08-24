@@ -266,7 +266,11 @@ func contextError(ctx context.Context) error {
 }
 
 func cloneRecord(record Record) Record {
-	record.Evidence = append(record.Evidence[:0], record.Evidence...)
-	record.History = append(record.History[:0], record.History...)
+	// Copy into a fresh backing array so callers can mutate the returned
+	// Evidence/History without touching the engine's stored record. The
+	// append(dst[:0], src...) form reuses the source's backing array, which
+	// lets list/get responses alias internal state.
+	record.Evidence = append([]Evidence(nil), record.Evidence...)
+	record.History = append([]Transition(nil), record.History...)
 	return record
 }
