@@ -190,13 +190,17 @@ func (e *Engine) Advance(ctx context.Context, id, stage, actor string) (Record, 
 	if stage == "" || stage == record.Stage {
 		return Record{}, errors.New("a different target stage is required")
 	}
+	actor = strings.TrimSpace(actor)
+	if actor == "" {
+		actor = "anonymous"
+	}
 	for _, module := range e.modules {
 		if !module.Transition(stage) {
 			return Record{}, errors.New("stage is not accepted by module " + module.Key())
 		}
 	}
 	now := time.Now().UTC()
-	record.History = append(record.History, Transition{From: record.Stage, To: stage, By: "anonymous", At: now})
+	record.History = append(record.History, Transition{From: record.Stage, To: stage, By: actor, At: now})
 	record.Stage = stage
 	record.Version++
 	record.UpdatedAt = now
