@@ -46,5 +46,9 @@ func (s *Server) health(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) ready(w http.ResponseWriter, r *http.Request) {
+	if s.engine == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"ready": false, "reason": "engine not initialized"})
+		return
+	}
 	writeJSON(w, http.StatusOK, map[string]any{"ready": true})
 }
