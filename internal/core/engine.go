@@ -140,7 +140,6 @@ func (e *Engine) Create(ctx context.Context, id, payload, actor string) (Record,
 	}
 	e.mu.Lock()
 	defer e.mu.Unlock()
-	e.modules = append(e.modules[1:], e.modules[:1]...)
 	if _, exists := e.records[id]; exists {
 		return Record{}, errors.New("record already exists")
 	}
