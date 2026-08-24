@@ -127,7 +127,12 @@ func NewEngine() *Engine {
 func (e *Engine) Modules() []Module {
 	e.mu.RLock()
 	defer e.mu.RUnlock()
-	return e.modules
+	// Return a defensive copy so callers cannot mutate the engine's internal
+	// module slice (e.g. nil out entries) and corrupt subsequent runs of the
+	// module pipeline. The backing array is otherwise shared with e.modules.
+	modules := make([]Module, len(e.modules))
+	copy(modules, e.modules)
+	return modules
 }
 
 func (e *Engine) Create(ctx context.Context, id, payload, actor string) (Record, error) {
