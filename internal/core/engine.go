@@ -147,7 +147,10 @@ func (e *Engine) Create(ctx context.Context, id, payload, actor string) (Record,
 	payload = strings.TrimSpace(payload)
 	now := time.Now().UTC()
 	result := Record{ID: id, Stage: "draft", Payload: payload, Version: 1, CreatedAt: now, UpdatedAt: now}
-	e.records[id] = cloneRecord(result)
+	// Validate and rewrite against every module before the record is committed
+	// to the store. A failed rule must not leave a partial (e.g. empty)
+	// entry behind, otherwise the list shows stale records and re-submitting
+	// the same id is rejected as "already exists".
 	for _, module := range e.modules {
 		if !module.Enabled() {
 			continue
